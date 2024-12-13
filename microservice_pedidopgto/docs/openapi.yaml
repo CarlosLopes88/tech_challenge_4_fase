@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: Pedidos e Pagamentos API
+  description: API para gerenciamento de pedidos e pagamentos no sistema de pedidos.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3003
+
+paths:
+  /api/pedido:
+    get:
+      summary: Retorna todos os pedidos
+      responses:
+        '200':
+          description: Lista de pedidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pedido'
+              example:
+                - pedidoId: "67890"
+                  cliente: "12345"
+                  produtos:
+                    - produto: "23456"
+                      quantidade: 2
+                  total: 31.98
+                  status: "Recebido"
+                  datapedido: "2023-05-01T12:00:00Z"
+                  statusPagamento: "Aprovado"
+                  pagamentoId: "pagamento-123"
+        '404':
+          description: Nenhum pedido encontrado
+    post:
+      summary: Cria um novo pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pedido'
+            example:
+              cliente: "12345"
+              produtos:
+                - produto: "23456"
+                  quantidade: 2
+      responses:
+        '201':
+          description: Pedido criado com sucesso
+        '500':
+          description: Erro no servidor
+
+  /api/pedido/{pedidoId}:
+    get:
+      summary: Retorna um pedido pelo ID
+      parameters:
+        - in: path
+          name: pedidoId
+          schema:
+            type: string
+          required: true
+          description: ID do pedido
+      responses:
+        '200':
+          description: Pedido encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+              example:
+                pedidoId: "67890"
+                cliente: "12345"
+                produtos:
+                  - produto: "23456"
+                    quantidade: 2
+                total: 31.98
+                status: "Recebido"
+                datapedido: "2023-05-01T12:00:00Z"
+                statusPagamento: "Aprovado"
+                pagamentoId: "pagamento-123"
+        '404':
+          description: Pedido não encontrado
+        '500':
+          description: Erro no servidor
+    put:
+      summary: Atualiza o status de um pedido pelo ID
+      parameters:
+        - in: path
+          name: pedidoId
+          schema:
+            type: string
+          required: true
+          description: ID do pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                novoStatus:
+                  type: string
+            example:
+              novoStatus: "Pronto"
+      responses:
+        '200':
+          description: Pedido atualizado com sucesso
+        '404':
+          description: Pedido não encontrado
+        '500':
+          description: Erro no servidor
+
+  /api/pedido/ativos:
+    get:
+      summary: Retorna pedidos filtrados excluindo os finalizados e ordenados por data e status
+      responses:
+        '200':
+          description: Lista de pedidos filtrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pedido'
+              example:
+                - pedidoId: "67890"
+                  cliente: "12345"
+                  produtos:
+                    - produto: "23456"
+                      quantidade: 2
+                  total: 31.98
+                  status: "Recebido"
+                  datapedido: "2023-05-01T12:00:00Z"
+                  statusPagamento: "Aprovado"
+                  pagamentoId: "pagamento-123"
+        '404':
+          description: Nenhum pedido encontrado conforme os critérios
+
+  /api/pagamento/{pedidoId}:
+    post:
+      summary: Cria um pagamento para um pedido especificado
+      parameters:
+        - in: path
+          name: pedidoId
+          schema:
+            type: string
+          required: true
+          description: ID do pedido para o qual o pagamento será processado
+      responses:
+        '201':
+          description: Pagamento processado e criado com sucesso
+        '404':
+          description: Pedido não encontrado
+        '500':
+          description: Erro interno no servidor
+
+  /api/webhook/pagseguro:
+    post:
+      summary: Recebe notificações do PagSeguro sobre o status do pagamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: "transaction"
+                data:
+                  type: object
+                  properties:
+                    reference_id:
+                      type: string
+                    status:
+                      type: string
+              required:
+                - event
+                - data
+            example:
+              event: "transaction"
+              data:
+                reference_id: "67890"
+                status: "PAID"
+      responses:
+        '200':
+          description: Notificação recebida e processada
+        '400':
+          description: Dados inválidos fornecidos
+        '500':
+          description: Erro interno no servidor
+
+components:
+  schemas:
+    Pedido:
+      type: object
+      properties:
+        pedidoId:
+          type: string
+        cliente:
+          type: string
+        produtos:
+          type: array
+          items:
+            type: object
+            properties:
+              produto:
+                type: string
+              quantidade:
+                type: number
+        total:
+          type: number
+        status:
+          type: string
+        datapedido:
+          type: string
+          format: date-time
+        statusPagamento:
+          type: string
+        pagamentoId:
+          type: string
+
+    Pagamento:
+      type: object
+      properties:
+        pedidoId:
+          type: string
+        metodoPagamento:
+          type: string
+        valor:
+          type: number

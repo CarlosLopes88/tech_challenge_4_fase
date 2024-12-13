@@ -1,0 +1,174 @@
+openapi: 3.1.0
+info:
+  title: Cadastro de Produtos API
+  description: API para gerenciamento de produtos no sistema de pedidos.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3002
+
+paths:
+  /api/produto:
+    get:
+      summary: Retorna todos os produtos
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Produto'
+              example:
+                - produtoId: "23456"
+                  nomeProduto: "Hambúrguer"
+                  descricaoProduto: "Hambúrguer de carne 200g"
+                  precoProduto: 15.99
+                  categoriaProduto: "Lanche"
+        '404':
+          description: Nenhum produto encontrado
+    post:
+      summary: Cria um novo produto ou vários produtos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Produto'
+            example:
+              - nomeProduto: "Hambúrguer"
+                descricaoProduto: "Hambúrguer de carne 200g"
+                precoProduto: 15.99
+                categoriaProduto: "Lanche"
+              - nomeProduto: "Refrigerante"
+                descricaoProduto: "Refrigerante de cola 300ml"
+                precoProduto: 6.99
+                categoriaProduto: "Bebida"
+      responses:
+        '201':
+          description: Produto(s) criado(s) com sucesso
+        '400':
+          description: Produtos não podem possuir o mesmo nome.
+        '500':
+          description: Erro no servidor
+
+  /api/produto/{produtoId}:
+    get:
+      summary: Retorna um produto pelo ID
+      parameters:
+        - in: path
+          name: produtoId
+          schema:
+            type: string
+          required: true
+          description: ID do produto
+      responses:
+        '200':
+          description: Produto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Produto'
+              example:
+                produtoId: "23456"
+                nomeProduto: "Hambúrguer"
+                descricaoProduto: "Hambúrguer de carne 200g"
+                precoProduto: 15.99
+                categoriaProduto: "Lanche"
+        '404':
+          description: Produto não encontrado
+        '500':
+          description: Erro no servidor
+
+    put:
+      summary: Atualiza um produto pelo ID
+      parameters:
+        - in: path
+          name: produtoId
+          schema:
+            type: string
+          required: true
+          description: ID do produto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Produto'
+            example:
+              nomeProduto: "Batata Frita"
+              descricaoProduto: "Porção de batata frita"
+              precoProduto: 5.00
+              categoriaProduto: "Acompanhamento"
+      responses:
+        '200':
+          description: Produto atualizado com sucesso
+        '404':
+          description: Produto não encontrado
+        '500':
+          description: Erro no servidor
+
+    delete:
+      summary: Exclui um produto pelo ID
+      parameters:
+        - in: path
+          name: produtoId
+          schema:
+            type: string
+          required: true
+          description: ID do produto
+      responses:
+        '200':
+          description: Produto excluído com sucesso
+        '404':
+          description: Produto não encontrado
+        '500':
+          description: Erro no servidor
+
+  /api/produto/categoria/{categoria}:
+    get:
+      summary: Retorna produtos por categoria
+      parameters:
+        - in: path
+          name: categoria
+          schema:
+            type: string
+          required: true
+          description: Categoria do produto
+      responses:
+        '200':
+          description: Lista de produtos por categoria
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Produto'
+              example:
+                - produtoId: "23456"
+                  nomeProduto: "Hambúrguer"
+                  descricaoProduto: "Hambúrguer de carne 200g"
+                  precoProduto: 15.99
+                  categoriaProduto: "Lanche"
+        '404':
+          description: Nenhum produto encontrado na categoria especificada
+        '500':
+          description: Erro no servidor
+
+components:
+  schemas:
+    Produto:
+      type: object
+      properties:
+        produtoId:
+          type: string
+        nomeProduto:
+          type: string
+        descricaoProduto:
+          type: string
+        precoProduto:
+          type: number
+        categoriaProduto:
+          type: string

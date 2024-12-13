@@ -1,0 +1,560 @@
+/microservice_clientes
+|-- /docs
+|-- `-- openapi.yaml
+|-- /src
+|   |-- /application
+|   |   |-- /interfaces
+|   |   |   |-- api
+|   |   |   |   |-- clienteRoutes.js
+|   |   |   `-- web
+|   |   |       `-- server.js
+|   |-- /core
+|   |   |-- /domain
+|   |   |   |-- cliente.js
+|   |   |-- /interfaces
+|   |   |   |-- clienteRepositoryInterface.js
+|   |-- /infrastructure
+|   |   |-- /repositories
+|   |   |   |-- clienteRepository.js
+|   |   `-- dbconnect.js
+|-- /test
+|   |-- clienteIntegrationTest.js
+|   |-- clienteRepositoryTest.js
+|   `-- clienteRoutesTest.js
+|-- dockerfile
+`-- package.json
+
+openapi.yaml:
+
+openapi: 3.1.0
+info:
+  title: Cadastro de Clientes API
+  description: API para gerenciamento de clientes no sistema de pedidos.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001
+
+paths:
+  /api/cliente:
+    post:
+      summary: Cria um novo cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cliente'
+            example:
+              cpf: "123.456.789-09"
+              nomeCliente: "Cogumelo Silva"
+              email: "Cogumelo.silva@example.com"
+      responses:
+        '201':
+          description: Cliente criado com sucesso
+        '500':
+          description: Erro no servidor
+    get:
+      summary: Retorna todos os clientes
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
+              example:
+                - clienteId: "12345"
+                  cpf: "123.456.789-09"
+                  nomeCliente: "Cogumelo Silva"
+                  email: "Cogumelo.silva@example.com"
+                  registrado: true
+                  dataRegistro: "2023-05-01T12:00:00Z"
+        '404':
+          description: Nenhum cliente encontrado
+
+  /api/cliente/{clienteId}:
+    get:
+      summary: Retorna um cliente pelo ID
+      parameters:
+        - in: path
+          name: clienteId
+          schema:
+            type: string
+          required: true
+          description: ID do cliente
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cliente'
+              example:
+                clienteId: "12345"
+                cpf: "123.456.789-09"
+                nomeCliente: "Cogumelo Silva"
+                email: "Cogumelo.silva@example.com"
+                registrado: true
+                dataRegistro: "2023-05-01T12:00:00Z"
+        '404':
+          description: Cliente não encontrado
+        '500':
+          description: Erro no servidor
+
+components:
+  schemas:
+    Cliente:
+      type: object
+      properties:
+        clienteId:
+          type: string
+        cpf:
+          type: string
+        nomeCliente:
+          type: string
+        email:
+          type: string
+        registrado:
+          type: boolean
+        dataRegistro:
+          type: string
+          format: date-time
+
+clienteRoutes.js:
+
+const express = require('express');
+
+module.exports = (clienteRepository) => {
+    const router = express.Router();
+
+    // Rota para verificar e/ou registrar um novo cliente
+    router.post('/', async (req, res) => {
+        const { cpf, nomeCliente, email } = req.body;
+        try {
+            let cliente = await clienteRepository.findClienteByCPF(cpf);
+            if (cliente) {
+                return res.status(200).send({ message: "Cliente já registrado.", cliente });
+            }
+            if (!cpf && !nomeCliente && !email) {
+                return res.status(200).send({ message: "Continuando como anônimo." });
+            }
+            cliente = await clienteRepository.addCliente(req.body);
+            res.status(201).send(cliente);
+        } catch (error) {
+            console.error('Erro ao adicionar cliente:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    // Rota para buscar cliente por ID amigável
+    router.get('/:clienteId', async (req, res) => {
+        try {
+            const cliente = await clienteRepository.getClienteByClienteId(req.params.clienteId);
+            if (!cliente) {
+                return res.status(404).send({ message: "Cliente não encontrado." });
+            }
+            res.status(200).json(cliente);
+        } catch (error) {
+            console.error('Erro ao buscar cliente por ID:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    // Rota para buscar todos os clientes
+    router.get('/', async (req, res) => {
+        try {
+            const clientes = await clienteRepository.getAllClientes();
+            if (clientes.length === 0) {
+                return res.status(404).send({ message: "Nenhum cliente encontrado." });
+            }
+            res.status(200).json(clientes);
+        } catch (error) {
+            console.error('Erro ao buscar todos os clientes:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    return router;
+};
+
+server.js:
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const path = require('path');
+const db = require('../../../infrastructure/dbconnect');
+
+// Repositórios e clientes HTTP
+const ClienteRepository = require('../../../infrastructure/repositories/clienteRepository');
+
+// Rotas
+const clienteRoutes = require('../../interfaces/api/clienteRoutes'); 
+
+// Inicialização do app Express
+const app = express();
+app.use(bodyParser.json());
+
+// Configurações de CORS
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    next();
+});
+
+// Conexão com o MongoDB
+db.once('open', () => {
+    console.log('Microserviço de Cadastro de Clientes conectado ao MongoDB');
+    const PORT = process.env.PORT || 3001;
+
+    // Inicializa os repositórios e clientes HTTP
+    const clienteRepository = new ClienteRepository();
+
+    // Documentação Swagger
+    const swaggerDocument = YAML.load(path.join(__dirname, '../../../../docs/openapi.yaml'));
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+    // Configuração das rotas com as instâncias corretas
+    app.use('/api/cliente', clienteRoutes(clienteRepository));
+
+    // Inicia o servidor
+    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+});
+
+cliente.js:
+
+const mongoose = require('mongoose');
+const shortid = require('shortid'); // Certifique-se de que shortid está instalado e importado corretamente
+
+const clienteSchema = new mongoose.Schema({
+    clienteId: { type: String, default: shortid.generate }, // ID personalizado
+    cpf: { type: String, required: false },
+    nomeCliente: { type: String, required: false }, // Nome do cliente
+    email: { type: String, required: false }, // Email do cliente
+    registrado: { type: Boolean, default: false }, // Se está registrado
+    dataRegistro: { type: Date, default: Date.now } // UM único campo de data
+});
+
+const Cliente = mongoose.model('Cliente', clienteSchema);
+
+module.exports = Cliente;
+
+clienteRepositoryInterface.js:
+
+class ClienteRepositoryInterface {
+    /**
+     * Adiciona um novo cliente ao repositório.
+     * @param {Object} clienteData - Dados do cliente a ser adicionado.
+     * @returns {Promise<Object>} O cliente recém-criado.
+     */
+    async addCliente(clienteData) {
+        throw new Error('Method not implemented: addCliente');
+    }
+
+    /**
+     * Busca um cliente pelo seu ID.
+     * @param {String} clienteId - O ID do cliente.
+     * @returns {Promise<Object>} O cliente encontrado.
+     */
+    async getClienteByClienteId(clienteId) {
+        throw new Error('Method not implemented: getClienteByClienteId');
+    }
+
+    /**
+     * Busca um cliente pelo seu CPF.
+     * @param {String} cpf - O CPF do cliente.
+     * @returns {Promise<Object>} O cliente encontrado.
+     */
+    async findClienteByCPF(cpf) {
+        throw new Error('Method not implemented: findClienteByCPF');
+    }
+
+    /**
+     * Retorna todos os clientes do repositório.
+     * @returns {Promise<Array>} Lista de todos os clientes.
+     */
+    async getAllClientes() {
+        throw new Error('Method not implemented: getAllClientes');
+    }
+}
+
+module.exports = ClienteRepositoryInterface;
+
+clienteRepository.js:
+
+// Importa o modelo do Mongoose e a interface do repositório de cliente.
+const Cliente = require('../../core/domain/cliente'); // Modelo do Mongoose
+const ClienteRepositoryInterface = require('../../core/repositoriesInterfaces/clienteRepositoryInterface');
+
+class ClienteRepository extends ClienteRepositoryInterface {
+    /**
+     * Adiciona um novo cliente ao repositório.
+     * @param {Object} clienteData - Dados do cliente a ser adicionado.
+     * @returns {Promise<Object>} O cliente recém-criado.
+     */
+    async addCliente(clienteData) {
+        const cliente = new Cliente(clienteData);
+        await cliente.save();
+        return cliente;
+    }
+
+    /**
+     * Busca um cliente pelo seu ID.
+     * @param {String} clienteId - O ID do cliente.
+     * @returns {Promise<Object>} O cliente encontrado.
+     */
+    async getClienteByClienteId(clienteId) {
+        return Cliente.findOne({ clienteId });
+    }
+
+    /**
+     * Busca um cliente pelo seu CPF.
+     * @param {String} cpf - O CPF do cliente.
+     * @returns {Promise<Object>} O cliente encontrado.
+     */
+    async findClienteByCPF(cpf) {
+        return Cliente.findOne({ cpf });
+    }
+
+    /**
+     * Retorna todos os clientes do repositório.
+     * @returns {Promise<Array>} Lista de todos os clientes.
+     */
+    async getAllClientes() {
+        return Cliente.find({});
+    }
+}
+
+module.exports = ClienteRepository;
+
+dbconnect.js:
+
+const mongoose = require('mongoose');
+
+const username = 'docdb_admin';
+const password = 'docdb_admin_password';
+const clusterEndpoint = 'docdb-microservice-cliente.cluster-cuebxlhckhcy.us-east-1.docdb.amazonaws.com';
+const dbName = 'orderdb';
+
+const connectionString = `mongodb://${username}:${password}@${clusterEndpoint}:27017/${dbName}?retryWrites=false`;
+
+mongoose.connect(connectionString, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  authMechanism: 'SCRAM-SHA-1' // Define o mecanismo explicitamente
+});
+
+const db = mongoose.connection;
+
+console.log(connectionString); // Isso mostrará a string de conexão completa no console
+
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+  console.log('Connected to MongoDB');
+});
+
+module.exports = db;
+
+clienteIntegrationTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const mongoose = require('mongoose');
+
+describe('Testes de integração do microserviço de clientes', () => {
+  beforeAll(async () => {
+    await mongoose.connect('mongodb://localhost:27017/test', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.dropDatabase();
+    await mongoose.connection.close();
+  });
+
+  it('Deve criar e buscar um cliente por ID', async () => {
+    const novoCliente = {
+      cpf: '123.456.789-09',
+      nomeCliente: 'Cliente Integração',
+      email: 'integracao@example.com',
+    };
+
+    const resPost = await request(app).post('/api/cliente').send(novoCliente);
+    expect(resPost.status).toBe(201);
+
+    const resGet = await request(app).get(`/api/cliente/${resPost.body.clienteId}`);
+    expect(resGet.status).toBe(200);
+    expect(resGet.body.nomeCliente).toBe('Cliente Integração');
+  });
+});
+
+clienteRepositoryTest.js:
+
+const mongoose = require('mongoose');
+const Cliente = require('../src/core/domain/cliente');
+const ClienteRepository = require('../src/infrastructure/repositories/clienteRepository');
+
+describe('Testes do ClienteRepository', () => {
+  let clienteRepository;
+
+  beforeAll(async () => {
+    await mongoose.connect('mongodb://localhost:27017/test', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    clienteRepository = new ClienteRepository();
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.dropDatabase();
+    await mongoose.connection.close();
+  });
+
+  it('Deve adicionar um novo cliente', async () => {
+    const cliente = await clienteRepository.addCliente({
+      cpf: '123.456.789-09',
+      nomeCliente: 'Teste Silva',
+      email: 'teste@example.com',
+    });
+
+    expect(cliente.clienteId).toBeDefined();
+    expect(cliente.nomeCliente).toBe('Teste Silva');
+  });
+
+  it('Deve retornar todos os clientes', async () => {
+    const clientes = await clienteRepository.getAllClientes();
+
+    expect(clientes.length).toBeGreaterThan(0);
+  });
+});
+
+clienteRoutesTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const ClienteRepository = require('../src/infrastructure/repositories/clienteRepository');
+
+jest.mock('../src/infrastructure/repositories/clienteRepository');
+
+describe('Testes das rotas de Cliente', () => {
+  beforeEach(() => {
+    ClienteRepository.mockClear();
+  });
+
+  it('Deve criar um novo cliente', async () => {
+    ClienteRepository.prototype.addCliente.mockResolvedValue({
+      clienteId: '12345',
+      cpf: '123.456.789-09',
+      nomeCliente: 'Teste Silva',
+      email: 'teste@example.com',
+    });
+
+    const res = await request(app).post('/api/cliente').send({
+      cpf: '123.456.789-09',
+      nomeCliente: 'Teste Silva',
+      email: 'teste@example.com',
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.clienteId).toBe('12345');
+  });
+
+  it('Deve retornar todos os clientes', async () => {
+    ClienteRepository.prototype.getAllClientes.mockResolvedValue([
+      { clienteId: '12345', nomeCliente: 'Cliente 1' },
+      { clienteId: '67890', nomeCliente: 'Cliente 2' },
+    ]);
+
+    const res = await request(app).get('/api/cliente');
+
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBe(2);
+  });
+
+  it('Deve retornar erro ao criar cliente sem dados obrigatórios', async () => {
+    const res = await request(app).post('/api/cliente').send({});
+
+    expect(res.status).toBe(400);
+  });
+});
+
+dockerfile:
+
+# Use uma imagem oficial do Node.js como base
+FROM node:20.12.0
+
+# Cria um diretório para armazenar os arquivos da aplicação
+WORKDIR /00.1_microservice_cliente
+
+# Copia os arquivos do package.json
+COPY package.json /00.1_microservice_cliente
+
+# Copia todos os arquivos do projeto para o diretório de trabalho
+COPY . /00.1_microservice_cliente
+
+# Instale as dependências do projeto
+RUN npm install
+
+# Exponha a porta que será usada pelo servidor
+EXPOSE 3001
+
+# Comando para executar a aplicação
+CMD ["npm", "start"]
+
+
+package.json:
+
+{
+  "name": "tech_challenge_2_fase",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node src/aplication/interfaces/web/server.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "body-parser": "^1.20.2",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.1",
+    "nodemon": "^3.1.4",
+    "shortid": "^2.2.16",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0",
+    "jest": "^29.6.2",
+    "supertest": "^6.3.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "description": ""
+}
+
+# 1. Criar o repositório
+aws ecr create-repository --repository-name microservice_app --region us-east-1
+
+# 2. Build da imagem Docker
+docker build -t microservice_cliente_app:latest .
+
+# 3. Login no ECR (verifique se o ID da conta está correto)
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 740588470221.dkr.ecr.us-east-1.amazonaws.com
+
+# 4. Tag da imagem
+docker tag microservice_cliente_app:latest 740588470221.dkr.ecr.us-east-1.amazonaws.com/microservice_app:microservice_cliente_app
+
+# 5. Push da imagem
+docker push 740588470221.dkr.ecr.us-east-1.amazonaws.com/microservice_app:microservice_cliente_app

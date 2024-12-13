@@ -1,0 +1,1147 @@
+/microservice_pedidopgto
+|-- /docs
+|   `-- openapi.yaml
+|-- /src
+|   |-- /application
+|   |   |-- /interfaces
+|   |   |   |-- api
+|   |   |   |   |-- pagamentoRoutes.js
+|   |   |   |   |-- pedidoRoutes.js
+|   |   |   |   `-- webhookRoutes.js
+|   |   |   `-- web
+|   |   |       `-- server.js
+|   |-- /core
+|   |   |-- /domain
+|   |   |   |-- pagamento.js
+|   |   |   |-- pedido.js
+|   |   |-- /interfaces
+|   |   |   |-- pedidoRepositoryInterface.js
+|   |   |-- /use_cases
+|   |       |-- pagamentoServices.js
+|   |       `-- pedidoUseServices.js    
+|   |-- /infrastructure
+|   |   |-- /http
+|   |   |   `-- pagamentoHttpClient.js
+|   |   |-- /repositories
+|   |   |   |-- pedidoRepository.js
+|   |   `-- dbconnect.js
+|-- /test
+|   |-- pagamentoIntegrationTest.js
+|   |-- pagamentoRepositoryTest.js
+|   |-- pagamentoRoutesTest.js
+|   |-- pedidoIntegrationTest.js
+|   |-- pedidoRepositoryTest.js
+|   `-- pedidoRoutesTest.js
+|-- dockerfile
+`-- package.json
+
+openapi.yaml:
+
+openapi: 3.1.0
+info:
+  title: Pedidos e Pagamentos API
+  description: API para gerenciamento de pedidos e pagamentos no sistema de pedidos.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3003
+
+paths:
+  /api/pedido:
+    get:
+      summary: Retorna todos os pedidos
+      responses:
+        '200':
+          description: Lista de pedidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pedido'
+              example:
+                - pedidoId: "67890"
+                  cliente: "12345"
+                  produtos:
+                    - produto: "23456"
+                      quantidade: 2
+                  total: 31.98
+                  status: "Recebido"
+                  datapedido: "2023-05-01T12:00:00Z"
+                  statusPagamento: "Aprovado"
+                  pagamentoId: "pagamento-123"
+        '404':
+          description: Nenhum pedido encontrado
+    post:
+      summary: Cria um novo pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Pedido'
+            example:
+              cliente: "12345"
+              produtos:
+                - produto: "23456"
+                  quantidade: 2
+      responses:
+        '201':
+          description: Pedido criado com sucesso
+        '500':
+          description: Erro no servidor
+
+  /api/pedido/{pedidoId}:
+    get:
+      summary: Retorna um pedido pelo ID
+      parameters:
+        - in: path
+          name: pedidoId
+          schema:
+            type: string
+          required: true
+          description: ID do pedido
+      responses:
+        '200':
+          description: Pedido encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+              example:
+                pedidoId: "67890"
+                cliente: "12345"
+                produtos:
+                  - produto: "23456"
+                    quantidade: 2
+                total: 31.98
+                status: "Recebido"
+                datapedido: "2023-05-01T12:00:00Z"
+                statusPagamento: "Aprovado"
+                pagamentoId: "pagamento-123"
+        '404':
+          description: Pedido não encontrado
+        '500':
+          description: Erro no servidor
+    put:
+      summary: Atualiza o status de um pedido pelo ID
+      parameters:
+        - in: path
+          name: pedidoId
+          schema:
+            type: string
+          required: true
+          description: ID do pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                novoStatus:
+                  type: string
+            example:
+              novoStatus: "Pronto"
+      responses:
+        '200':
+          description: Pedido atualizado com sucesso
+        '404':
+          description: Pedido não encontrado
+        '500':
+          description: Erro no servidor
+
+  /api/pedido/ativos:
+    get:
+      summary: Retorna pedidos filtrados excluindo os finalizados e ordenados por data e status
+      responses:
+        '200':
+          description: Lista de pedidos filtrados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pedido'
+              example:
+                - pedidoId: "67890"
+                  cliente: "12345"
+                  produtos:
+                    - produto: "23456"
+                      quantidade: 2
+                  total: 31.98
+                  status: "Recebido"
+                  datapedido: "2023-05-01T12:00:00Z"
+                  statusPagamento: "Aprovado"
+                  pagamentoId: "pagamento-123"
+        '404':
+          description: Nenhum pedido encontrado conforme os critérios
+
+  /api/pagamento/{pedidoId}:
+    post:
+      summary: Cria um pagamento para um pedido especificado
+      parameters:
+        - in: path
+          name: pedidoId
+          schema:
+            type: string
+          required: true
+          description: ID do pedido para o qual o pagamento será processado
+      responses:
+        '201':
+          description: Pagamento processado e criado com sucesso
+        '404':
+          description: Pedido não encontrado
+        '500':
+          description: Erro interno no servidor
+
+  /api/webhook/pagseguro:
+    post:
+      summary: Recebe notificações do PagSeguro sobre o status do pagamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: string
+                  example: "transaction"
+                data:
+                  type: object
+                  properties:
+                    reference_id:
+                      type: string
+                    status:
+                      type: string
+              required:
+                - event
+                - data
+            example:
+              event: "transaction"
+              data:
+                reference_id: "67890"
+                status: "PAID"
+      responses:
+        '200':
+          description: Notificação recebida e processada
+        '400':
+          description: Dados inválidos fornecidos
+        '500':
+          description: Erro interno no servidor
+
+components:
+  schemas:
+    Pedido:
+      type: object
+      properties:
+        pedidoId:
+          type: string
+        cliente:
+          type: string
+        produtos:
+          type: array
+          items:
+            type: object
+            properties:
+              produto:
+                type: string
+              quantidade:
+                type: number
+        total:
+          type: number
+        status:
+          type: string
+        datapedido:
+          type: string
+          format: date-time
+        statusPagamento:
+          type: string
+        pagamentoId:
+          type: string
+
+    Pagamento:
+      type: object
+      properties:
+        pedidoId:
+          type: string
+        metodoPagamento:
+          type: string
+        valor:
+          type: number
+
+pagamentoRoutes.js:
+
+const express = require('express');
+
+module.exports = (pagamentoService) => {
+    if (!pagamentoService) {
+        throw new Error("pagamentoService é obrigatório para inicializar pagamentoRoutes");
+    }
+
+    const router = express.Router();
+
+    // Rota para criar pagamento
+    router.post('/:pedidoId', async (req, res) => {
+        const { pedidoId } = req.params;
+        try {
+            const pagamento = await pagamentoService.criarPagamento(pedidoId);
+            res.status(201).json(pagamento);
+        } catch (error) {
+            console.error('Erro ao criar pagamento:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    return router;
+};
+
+pedidoRoutes.js:
+
+const express = require('express');
+
+module.exports = (pedidoRepository, pedidoService) => {
+    if (!pedidoRepository || !pedidoService) {
+        throw new Error("pedidoRepository e pedidoService são obrigatórios para inicializar pedidoRoutes");
+    }
+
+    const router = express.Router();
+
+    // Cria um novo pedido
+    router.post('/', async (req, res) => {
+        try {
+            // Calcular o total e criar o pedido
+            const novoPedido = await pedidoService.criarPedido(req.body);
+            
+            // Atualizar o status do pedido para "Em preparação"
+            await pedidoRepository.updatePedidoStatus(novoPedido.pedidoId, 'Recebido');
+
+            res.status(201).json(novoPedido);
+        } catch (error) {
+            console.error('Erro ao criar novo pedido:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    // Busca todos os pedidos
+    router.get('/', async (req, res) => {
+        try {
+            const pedidos = await pedidoRepository.getAllPedidos();
+            if (pedidos.length === 0) {
+                return res.status(404).send({ message: "Nenhum pedido encontrado." });
+            }
+            res.json(pedidos);
+        } catch (error) {
+            console.error('Erro ao buscar todos os pedidos:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    // Nova rota para buscar pedidos com critérios específicos (não finalizados, ordenados etc.)
+    router.get('/ativos', async (req, res) => {
+        try {
+            const pedidos = await pedidoRepository.getPedidos();
+            if (pedidos.length === 0) {
+                return res.status(404).send({ message: "Nenhum pedido encontrado conforme os critérios." });
+            }
+            res.json(pedidos);
+        } catch (error) {
+            console.error('Erro ao buscar pedidos filtrados:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    // Busca um pedido específico pelo pedidoId
+    router.get('/:pedidoId', async (req, res) => {
+        try {
+            const pedido = await pedidoRepository.getPedidoByPedidoId(req.params.pedidoId);
+            if (!pedido) {
+                return res.status(404).send({ message: "Pedido não encontrado." });
+            }
+            res.status(200).json(pedido);
+        } catch (error) {
+            console.error('Erro ao buscar pedido por ID:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    // Atualiza o status de um pedido específico
+    router.put('/:pedidoId/status', async (req, res) => {
+        try {
+            const { pedidoId } = req.params;
+            const { novoStatus } = req.body;
+
+            const pedidoAtualizado = await pedidoRepository.updatePedidoStatus(pedidoId, novoStatus);
+            if (!pedidoAtualizado) {
+                return res.status(404).send({ message: "Pedido não encontrado." });
+            }
+
+            res.status(200).json(pedidoAtualizado);
+        } catch (error) {
+            console.error('Erro ao atualizar status do pedido:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    return router;
+};
+
+webhookRoutes.js:
+
+const express = require('express');
+
+module.exports = (pedidoRepository) => {
+    if (!pedidoRepository) {
+        throw new Error("pedidoRepository é obrigatório para inicializar webhookRoutes");
+    }
+
+    const router = express.Router();
+
+    // Endpoint para receber notificações do PagSeguro
+    router.post('/pagseguro', async (req, res) => {
+        const notification = req.body;
+        console.log('Notificação do PagSeguro recebida:', notification);
+
+        try {
+            // Verifique o tipo de evento e processe conforme necessário
+            if (notification.event === 'transaction') {
+                const transaction = notification.data;
+                const pedidoId = transaction.reference_id; // Assumindo que o ID do pedido foi usado como referência
+
+                // Atualizar apenas o status do pagamento
+                const statusPagamento = transaction.status === 'PAID' ? 'Aprovado' : transaction.status;
+
+                // Atualize apenas o status do pagamento no seu sistema
+                await pedidoRepository.updateStatusPagamento(pedidoId, statusPagamento);
+
+                console.log(`Pedido ${pedidoId} atualizado para status ${statusPagamento}`);
+            }
+
+            // Responder à requisição do webhook
+            res.status(200).send('Notificação recebida');
+        } catch (error) {
+            console.error('Erro ao processar notificação do PagSeguro:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    return router;
+};
+
+server.js:
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const path = require('path');
+const db = require('../../../infrastructure/dbconnect');
+
+// Repositórios e clientes HTTP
+const PedidoRepository = require('../../../infrastructure/repositories/pedidoRepository');
+const PagamentoHttpClient = require('../../../infrastructure/http/pagamentoHttpClient');
+
+// Casos de uso (use cases)
+const PagamentoService = require('../../../core/user_cases/pagamentoService');
+const PedidoService = require('../../../core/user_cases/pedidoService');
+
+// Rotas
+const pedidoRoutes = require('../../interfaces/api/pedidoRoutes'); 
+const pagamentoRoutes = require('../../interfaces/api/pagamentoRoutes'); 
+const webhookRoutes = require('../../interfaces/api/webhookRoutes');
+
+// Inicialização do app Express
+const app = express();
+app.use(bodyParser.json());
+
+// Configurações de CORS
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    next();
+});
+
+// Conexão com o MongoDB
+db.once('open', () => {
+    console.log('Microserviço de Cadastro de Clientes conectado ao MongoDB');
+    const PORT = process.env.PORT || 3003;
+
+    // Inicializa os repositórios e clientes HTTP
+    const pedidoRepository = new PedidoRepository();
+    const pagamentoHttpClient = new PagamentoHttpClient();
+
+    // Inicializa os casos de uso com as dependências corretas
+    const pagamentoService = new PagamentoService(pedidoRepository, pagamentoHttpClient);
+    const pedidoService = new PedidoService(pedidoRepository);
+
+    // Documentação Swagger
+    const swaggerDocument = YAML.load(path.join(__dirname, '../../../../docs/openapi.yaml'));
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+    // Configuração das rotas com as instâncias corretas
+    app.use('/api/pedido', pedidoRoutes(pedidoRepository, pedidoService));
+    app.use('/api/pagamento', pagamentoRoutes(pagamentoService));
+    app.use('/api/webhook', webhookRoutes(pedidoRepository));
+
+    // Inicia o servidor
+    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+});
+
+pagamento.js:
+
+const mongoose = require('mongoose');
+
+const pagamentoSchema = new mongoose.Schema({
+    pedidoId: { type: String, required: true },
+    valor: { type: Number, required: true },
+    status: { type: String, default: 'Pendente' },
+    qrCodeLink: { type: String, required: true },
+    // Outros campos relevantes, como método de pagamento, data de criação, etc.
+});
+
+const Pagamento = mongoose.model('Pagamento', pagamentoSchema);
+
+module.exports = Pagamento;
+
+pedido.js:
+
+const mongoose = require('mongoose');
+const shortid = require('shortid');
+
+const pedidoSchema = new mongoose.Schema({
+    pedidoId: { type: String, default: shortid.generate },
+    cliente: {
+        type: String,
+        required: false
+    },
+    produtos: [{
+        produto: {
+            type: String,
+            required: true
+        },
+        nomeProduto: { type: String, required: true },
+        precoProduto: { type: Number, required: true },
+        quantidade: { type: Number, required: true, default: 1 }
+    }],
+    total: { type: Number, required: true, default: 0 },
+    status: { type: String, required: true, default: 'Recebido' },
+    datapedido: { type: Date, default: Date.now },
+    statusPagamento: { type: String, default: 'Pendente' },
+    pagamentoId: { type: String, required: false },
+});
+
+const Pedido = mongoose.model('Pedido', pedidoSchema);
+
+module.exports = Pedido;
+
+pedidoRepositoryInterface.js:
+
+class PedidoRepositoryInterface {
+    /**
+     * Adiciona um novo pedido ao repositório.
+     * @param {Object} pedidoData - Dados do pedido a ser adicionado.
+     * @returns {Promise<Object>} O pedido recém-criado.
+     */
+    async addPedido(pedidoData) {
+        throw new Error('Method not implemented: addPedido');
+    }
+
+    /**
+     * Busca um pedido pelo seu ID.
+     * @param {String} pedidoId - O ID do pedido.
+     * @returns {Promise<Object>} O pedido encontrado.
+     */
+    async getPedidoByPedidoId(pedidoId) {
+        throw new Error('Method not implemented: getPedidoByPedidoId');
+    }
+
+    /**
+     * Busca todos os pedidos do repositório.
+     * @returns {Promise<Array>} Lista de todos os pedidos.
+     */
+    async getAllPedidos() {
+        throw new Error('Method not implemented: getAllPedidos');
+    }
+
+    /**
+     * Busca pedidos ativos (não finalizados) e ordena por data.
+     * @returns {Promise<Array>} Lista de pedidos ativos.
+     */
+    async getPedidos() {
+        throw new Error('Method not implemented: getPedidos');
+    }
+
+    /**
+     * Atualiza o status de um pedido pelo ID.
+     * @param {String} pedidoId - O ID do pedido.
+     * @param {String} novoStatus - O novo status do pedido.
+     * @returns {Promise<Object>} O pedido atualizado.
+     */
+    async updatePedidoStatus(pedidoId, novoStatus) {
+        throw new Error('Method not implemented: updatePedidoStatus');
+    }
+
+    /**
+     * Atualiza o status de pagamento de um pedido pelo ID.
+     * @param {String} pedidoId - O ID do pedido.
+     * @param {String} statusPagamento - O novo status de pagamento.
+     * @returns {Promise<Object>} O pedido com status de pagamento atualizado.
+     */
+    async updateStatusPagamento(pedidoId, statusPagamento) {
+        throw new Error('Method not implemented: updateStatusPagamento');
+    }
+}
+
+module.exports = PedidoRepositoryInterface;
+
+pagamentoServices.js:
+
+const axios = require('axios');
+
+class PagamentoService {
+    constructor(pedidoRepository, pagamentoHttpClient) {
+        this.pedidoRepository = pedidoRepository;
+        this.pagamentoHttpClient = pagamentoHttpClient;
+    }
+
+    async criarPagamento(pedidoId) {
+        try {
+            // Buscar o pedido pelo ID
+            const pedido = await this.pedidoRepository.getPedidoByPedidoId(pedidoId);
+            if (!pedido) {
+                throw new Error('Pedido não encontrado');
+            }
+
+            // Buscar o cliente via API
+            const clienteResponse = await axios.get(`http://ad4cc00be3cd84c5385cc063aed1f5f0-1036665070.us-east-1.elb.amazonaws.com/api/cliente/${pedido.cliente}`);
+            const cliente = clienteResponse.data;
+
+            console.log('Cliente recebido da API:', cliente);
+
+            if (!cliente) {
+                throw new Error('Cliente não encontrado');
+            }
+
+            // Preparar os produtos
+            const produtos = await this._construirProdutos(pedido.produtos);
+
+            // Construir o corpo da requisição
+            const requestBody = this._construirRequestBody(pedido, cliente, produtos);
+
+            console.log('Payload enviado ao PagSeguro:', requestBody);
+
+            // Realizar a chamada ao PagSeguro
+            const response = await this.pagamentoHttpClient.criarPagamento(requestBody);
+            const qrCodeLink = response.data.qr_codes[0].links[1].href;
+
+            // Registrar o pagamento
+            const pagamento = {
+                pedidoId: pedidoId,
+                valor: pedido.total,
+                status: 'Pendente',
+                qrCodeLink: qrCodeLink
+            };
+
+            await this.pedidoRepository.updateStatusPagamento(pedidoId, 'Aprovado');
+            return pagamento;
+
+        } catch (error) {
+            console.error('Erro ao criar pagamento:', error);
+            throw new Error(error.message);
+        }
+    }
+
+    async _construirProdutos(produtosPedido) {
+        const produtos = await Promise.all(produtosPedido.map(async (item) => {
+            // Buscar produto via API
+            const produtoResponse = await axios.get(`http://ac619009586eb4d2bb7a8d21a932c998-374189480.us-east-1.elb.amazonaws.com/api/produto/${item.produto}`);
+            const produto = produtoResponse.data;
+            
+            return {
+                name: produto.nomeProduto,
+                quantity: item.quantidade,
+                unit_amount: produto.precoProduto * 100
+            };
+        }));
+        return produtos;
+    }
+
+    _construirRequestBody(pedido, cliente, produtos) {
+        return {
+            reference_id: pedido.pedidoId,
+            customer: {
+                name: cliente.nomeCliente,
+                email: cliente.email,
+                tax_id: cliente.cpf,
+                phones: [
+                    {
+                        country: "55",
+                        area: "41",
+                        number: "999999999",
+                        type: "MOBILE"
+                    }
+                ]
+            },
+            items: produtos,
+            qr_codes: [
+                {
+                    amount: {
+                        value: pedido.total * 100
+                    },
+                    expiration_date: new Date(Date.now() + 3600 * 1000).toISOString()
+                }
+            ],
+            shipping: {
+                address: {
+                    street: "meu endereço",
+                    number: "0000",
+                    complement: "loja 01",
+                    locality: "Meu bairro",
+                    city: "Curitiba",
+                    region_code: "PR",
+                    country: "BRA",
+                    postal_code: "80000000"
+                }
+            },
+            notification_urls: [
+                "https://meusite.com/notificacoes"
+            ]
+        };
+    }
+}
+
+module.exports = PagamentoService;
+
+pedidoUseServices.js:
+
+const Pedido = require('../../core/domain/pedido');
+const axios = require('axios');
+
+class PedidoService {
+    constructor(pedidoRepository) {
+        this.pedidoRepository = pedidoRepository;
+    }
+
+    async calcularTotal(pedidoData) {
+        let total = 0;
+        for (const item of pedidoData.produtos) {
+            // Consulta o produto via API do microserviço Cadastro de Produtos
+            const produtoResponse = await axios.get(`http://ac619009586eb4d2bb7a8d21a932c998-374189480.us-east-1.elb.amazonaws.com/api/produto/${item.produto}`);
+            const produto = produtoResponse.data;
+
+            if (produto) {
+                item.nomeProduto = produto.nomeProduto;
+                item.precoProduto = produto.precoProduto;
+                total += item.quantidade * produto.precoProduto;
+            } else {
+                throw new Error('Produto não encontrado');
+            }
+        }
+        pedidoData.total = total;
+        return pedidoData;
+    }
+
+    async criarPedido(pedidoData) {
+        // Consulta o cliente via API do microserviço Cadastro de Clientes
+        const clienteResponse = await axios.get(`http://ad4cc00be3cd84c5385cc063aed1f5f0-1036665070.us-east-1.elb.amazonaws.com/api/cliente/${pedidoData.cliente}`);
+        const cliente = clienteResponse.data;
+
+        if (!cliente) {
+            throw new Error('Cliente não encontrado');
+        }
+
+        const pedidoCalculado = await this.calcularTotal(pedidoData);
+        const pedido = await this.pedidoRepository.addPedido(pedidoCalculado);
+        return pedido;
+    }
+}
+
+module.exports = PedidoService;
+
+pagamentoHttpClient.js:
+
+const axios = require('axios');
+
+class PagamentoHttpClient {
+    async criarPagamento(requestBody) {
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': "Bearer 1209bdb1-6f3a-4fa5-9504-693ac0fd049ea6b1202a435499b6b5c70a765fd3a49e9dc5-dbf8-465c-ada0-07e3cf4dbeff"
+        };
+
+        try {
+            console.log("Enviando requisição para o PagSeguro...");
+            const response = await axios.post('https://sandbox.api.pagseguro.com/orders', requestBody, { headers });
+            console.log("Resposta da API PagSeguro:", response.data);
+            return response;
+        } catch (error) {
+            if (error.response) {
+                console.error("Erro HTTP:", error.response.status);
+                console.error("Dados retornados pela API:", JSON.stringify(error.response.data, null, 2));
+            } else {
+                console.error("Erro na requisição:", error.message);
+            }
+            throw error;
+        }
+    }
+}
+
+module.exports = PagamentoHttpClient;
+
+pedidoRepository.js:
+
+const Pedido = require('../../core/domain/pedido');
+const PedidoRepositoryInterface = require('../../core/repositoriesInterfaces/pedidoRepositoryInterface');
+
+class PedidoRepository extends PedidoRepositoryInterface {
+    async addPedido(pedidoData) {
+        const pedido = new Pedido(pedidoData);
+        await pedido.save();
+        return pedido;
+    }
+
+    async getPedidoByPedidoId(pedidoId) {
+        return Pedido.findOne({ pedidoId });
+    }
+
+    async getAllPedidos() {
+        return Pedido.find({});
+    }
+
+    async getPedidos() {
+        return Pedido.find({
+            status: { $nin: ["Finalizado"] }  // Exclui pedidos com status "Finalizado"
+        })
+        .sort({ datapedido: 1 })  // Ordena por data de pedido, mais antigos primeiro
+        .sort({ 'status.priority': 1 })  // Ordena por prioridade de status usando um campo de prioridade
+        .exec();
+    }
+
+    async updatePedidoStatus(pedidoId, novoStatus) {
+        const pedidoAtualizado = await Pedido.findOneAndUpdate(
+            { pedidoId },
+            { status: novoStatus },
+            { new: true }
+        );
+        return pedidoAtualizado;
+    }
+
+    async updateStatusPagamento(pedidoId, statusPagamento) {
+        const pedidoAtualizado = await Pedido.findOneAndUpdate(
+            { pedidoId },
+            { statusPagamento: statusPagamento },
+            { new: true }
+        );
+        return pedidoAtualizado;
+    }
+}
+
+module.exports = PedidoRepository;
+
+dbconnect.js:
+
+const mongoose = require('mongoose');
+
+const username = 'docdb_admin';
+const password = 'docdb_admin_password';
+const clusterEndpoint = 'docdb-microservice-pedidopgto.cluster-cuebxlhckhcy.us-east-1.docdb.amazonaws.com';
+const dbName = 'orderdb';
+
+const connectionString = `mongodb://${username}:${password}@${clusterEndpoint}:27017/${dbName}?retryWrites=false`;
+
+mongoose.connect(connectionString, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  authMechanism: 'SCRAM-SHA-1' // Define o mecanismo explicitamente
+});
+
+const db = mongoose.connection;
+
+console.log(connectionString); // Isso mostrará a string de conexão completa no console
+
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+  console.log('Connected to MongoDB');
+});
+
+module.exports = db;
+
+pagamentoIntegrationTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const mongoose = require('mongoose');
+
+describe('Testes de Integração - Microserviço Pagamentos', () => {
+    beforeAll(async () => {
+        await mongoose.connect('mongodb://localhost:27017/test', {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+    });
+
+    afterAll(async () => {
+        await mongoose.connection.dropDatabase();
+        await mongoose.connection.close();
+    });
+
+    it('Deve criar um pagamento para um pedido', async () => {
+        const pedidoId = '67890';
+        const res = await request(app).post(`/api/pagamento/${pedidoId}`).send();
+        expect(res.status).toBe(201);
+        expect(res.body.pedidoId).toBe(pedidoId);
+    });
+});
+
+pagamentoRepositoryTest.js:
+
+const mongoose = require('mongoose');
+const Pagamento = require('../src/core/domain/pagamento');
+const PagamentoHttpClient = require('../src/infrastructure/http/pagamentoHttpClient');
+
+describe('Testes do PagamentoHttpClient', () => {
+    let pagamentoHttpClient;
+
+    beforeAll(() => {
+        pagamentoHttpClient = new PagamentoHttpClient();
+    });
+
+    it('Deve criar um novo pagamento via API', async () => {
+        jest.spyOn(pagamentoHttpClient, 'criarPagamento').mockResolvedValue({
+            data: {
+                qr_codes: [{ links: [{}, { href: 'http://example.com/qrcode' }] }]
+            }
+        });
+
+        const requestBody = {
+            reference_id: '67890',
+            customer: { name: 'Teste Cliente', email: 'teste@example.com' },
+            items: [],
+        };
+
+        const response = await pagamentoHttpClient.criarPagamento(requestBody);
+        expect(response.data.qr_codes[0].links[1].href).toBe('http://example.com/qrcode');
+    });
+});
+
+pagamentoRoutesTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const PagamentoService = require('../src/core/use_cases/pagamentoServices');
+
+jest.mock('../src/core/use_cases/pagamentoServices');
+
+describe('Testes das Rotas de Pagamento', () => {
+    beforeEach(() => {
+        PagamentoService.mockClear();
+    });
+
+    it('Deve criar um novo pagamento', async () => {
+        PagamentoService.prototype.criarPagamento.mockResolvedValue({
+            pedidoId: '67890',
+            valor: 31.98,
+            status: 'Pendente',
+        });
+
+        const res = await request(app).post('/api/pagamento/67890').send();
+        expect(res.status).toBe(201);
+        expect(res.body.pedidoId).toBe('67890');
+    });
+
+    it('Deve retornar erro ao criar pagamento para pedido inexistente', async () => {
+        PagamentoService.prototype.criarPagamento.mockRejectedValue(new Error('Pedido não encontrado'));
+
+        const res = await request(app).post('/api/pagamento/12345').send();
+        expect(res.status).toBe(500);
+    });
+});
+
+pedidoIntegrationTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const mongoose = require('mongoose');
+
+describe('Testes de Integração - Microserviço Pedidos', () => {
+    beforeAll(async () => {
+        await mongoose.connect('mongodb://localhost:27017/test', {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+    });
+
+    afterAll(async () => {
+        await mongoose.connection.dropDatabase();
+        await mongoose.connection.close();
+    });
+
+    it('Deve criar e buscar um pedido por ID', async () => {
+        const novoPedido = {
+            cliente: '12345',
+            produtos: [{ produto: '23456', quantidade: 2 }]
+        };
+
+        const resPost = await request(app).post('/api/pedido').send(novoPedido);
+        expect(resPost.status).toBe(201);
+
+        const resGet = await request(app).get(`/api/pedido/${resPost.body.pedidoId}`);
+        expect(resGet.status).toBe(200);
+        expect(resGet.body.cliente).toBe('12345');
+    });
+
+    it('Deve buscar todos os pedidos ativos', async () => {
+        const res = await request(app).get('/api/pedido/ativos');
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body)).toBe(true);
+    });
+});
+
+pedidoRepositoryTest.js:
+
+const mongoose = require('mongoose');
+const Pedido = require('../src/core/domain/pedido');
+const PedidoRepository = require('../src/infrastructure/repositories/pedidoRepository');
+
+describe('Testes do PedidoRepository', () => {
+    let pedidoRepository;
+
+    beforeAll(async () => {
+        await mongoose.connect('mongodb://localhost:27017/test', {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+        });
+        pedidoRepository = new PedidoRepository();
+    });
+
+    afterAll(async () => {
+        await mongoose.connection.dropDatabase();
+        await mongoose.connection.close();
+    });
+
+    it('Deve adicionar um novo pedido', async () => {
+        const pedido = await pedidoRepository.addPedido({
+            cliente: '12345',
+            produtos: [{ produto: '23456', quantidade: 2 }]
+        });
+
+        expect(pedido.pedidoId).toBeDefined();
+        expect(pedido.cliente).toBe('12345');
+    });
+
+    it('Deve retornar todos os pedidos', async () => {
+        const pedidos = await pedidoRepository.getAllPedidos();
+        expect(pedidos.length).toBeGreaterThan(0);
+    });
+});
+
+pedidoRoutesTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const PedidoRepository = require('../src/infrastructure/repositories/pedidoRepository');
+
+jest.mock('../src/infrastructure/repositories/pedidoRepository');
+
+describe('Testes das Rotas de Pedido', () => {
+    beforeEach(() => {
+        PedidoRepository.mockClear();
+    });
+
+    it('Deve criar um novo pedido', async () => {
+        PedidoRepository.prototype.addPedido.mockResolvedValue({
+            pedidoId: '12345',
+            cliente: '12345',
+            total: 31.98,
+            status: 'Recebido',
+        });
+
+        const res = await request(app).post('/api/pedido').send({
+            cliente: '12345',
+            produtos: [{ produto: '23456', quantidade: 2 }]
+        });
+
+        expect(res.status).toBe(201);
+        expect(res.body.pedidoId).toBe('12345');
+    });
+
+    it('Deve retornar erro ao criar pedido sem dados obrigatórios', async () => {
+        const res = await request(app).post('/api/pedido').send({});
+        expect(res.status).toBe(400);
+    });
+});
+
+dockerfile:
+
+# Use uma imagem oficial do Node.js como base
+FROM node:20.12.0
+
+# Cria um diretório para armazenar os arquivos da aplicação
+WORKDIR /00.3_microservice_pedidopgto
+
+# Copia os arquivos do package.json
+COPY package.json /00.3_microservice_pedidopgto
+
+# Copia todos os arquivos do projeto para o diretório de trabalho
+COPY . /00.3_microservice_pedidopgto
+
+# Instale as dependências do projeto
+RUN npm install
+
+# Exponha a porta que será usada pelo servidor
+EXPOSE 3003
+
+# Comando para executar a aplicação
+CMD ["npm", "start"]
+
+package.json
+
+{
+  "name": "tech_challenge_2_fase",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node src/aplication/interfaces/web/server.js",
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "body-parser": "^1.20.2",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.1",
+    "nodemon": "^3.1.4",
+    "shortid": "^2.2.16",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0",
+    "jest": "^29.6.2",
+    "supertest": "^6.3.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "description": ""
+}
+
+# 1. Criar o repositório
+aws ecr create-repository --repository-name microservice_app --region us-east-1
+
+# 2. Build da imagem Docker
+docker build -t microservice_pedidopgto_app:latest .
+
+# 3. Login no ECR (verifique se o ID da conta está correto)
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 740588470221.dkr.ecr.us-east-1.amazonaws.com
+
+# 4. Tag da imagem
+docker tag microservice_pedidopgto_app:latest 740588470221.dkr.ecr.us-east-1.amazonaws.com/microservice_app:microservice_pedidopgto_app
+
+# 5. Push da imagem
+docker push 740588470221.dkr.ecr.us-east-1.amazonaws.com/microservice_app:microservice_pedidopgto_app

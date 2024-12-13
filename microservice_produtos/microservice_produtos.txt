@@ -1,0 +1,701 @@
+/microservice_produtos
+|-- /docs
+|   `-- openapi.yaml
+|-- /src
+|   |-- /application
+|   |   |-- /interfaces
+|   |   |   |-- api
+|   |   |   |   |-- produtoRoutes.js
+|   |   |   `-- web
+|   |   |       `-- server.js
+|   |-- /core
+|   |   |-- /domain
+|   |   |   `-- produto.js
+|   |   |-- /interfaces
+|   |   |   `-- produtoRepositoryInterface.js 
+|   |-- /infrastructure
+|   |   |-- /repositories
+|   |   |   `-- produtoRepository.js
+|   |   `-- dbconnect.js
+|-- /test
+|   |-- produtoIntegrationTest.js
+|   |-- produtoRepositoryTest.js
+|   `-- produtoRoutesTest.js
+|-- dockerfile
+`-- package.json
+
+openapi.yaml:
+
+openapi: 3.1.0
+info:
+  title: Cadastro de Produtos API
+  description: API para gerenciamento de produtos no sistema de pedidos.
+  version: 1.0.0
+servers:
+  - url: http://localhost:3002
+
+paths:
+  /api/produto:
+    get:
+      summary: Retorna todos os produtos
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Produto'
+              example:
+                - produtoId: "23456"
+                  nomeProduto: "Hambúrguer"
+                  descricaoProduto: "Hambúrguer de carne 200g"
+                  precoProduto: 15.99
+                  categoriaProduto: "Lanche"
+        '404':
+          description: Nenhum produto encontrado
+    post:
+      summary: Cria um novo produto ou vários produtos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Produto'
+            example:
+              - nomeProduto: "Hambúrguer"
+                descricaoProduto: "Hambúrguer de carne 200g"
+                precoProduto: 15.99
+                categoriaProduto: "Lanche"
+              - nomeProduto: "Refrigerante"
+                descricaoProduto: "Refrigerante de cola 300ml"
+                precoProduto: 6.99
+                categoriaProduto: "Bebida"
+      responses:
+        '201':
+          description: Produto(s) criado(s) com sucesso
+        '400':
+          description: Produtos não podem possuir o mesmo nome.
+        '500':
+          description: Erro no servidor
+
+  /api/produto/{produtoId}:
+    get:
+      summary: Retorna um produto pelo ID
+      parameters:
+        - in: path
+          name: produtoId
+          schema:
+            type: string
+          required: true
+          description: ID do produto
+      responses:
+        '200':
+          description: Produto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Produto'
+              example:
+                produtoId: "23456"
+                nomeProduto: "Hambúrguer"
+                descricaoProduto: "Hambúrguer de carne 200g"
+                precoProduto: 15.99
+                categoriaProduto: "Lanche"
+        '404':
+          description: Produto não encontrado
+        '500':
+          description: Erro no servidor
+
+    put:
+      summary: Atualiza um produto pelo ID
+      parameters:
+        - in: path
+          name: produtoId
+          schema:
+            type: string
+          required: true
+          description: ID do produto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Produto'
+            example:
+              nomeProduto: "Batata Frita"
+              descricaoProduto: "Porção de batata frita"
+              precoProduto: 5.00
+              categoriaProduto: "Acompanhamento"
+      responses:
+        '200':
+          description: Produto atualizado com sucesso
+        '404':
+          description: Produto não encontrado
+        '500':
+          description: Erro no servidor
+
+    delete:
+      summary: Exclui um produto pelo ID
+      parameters:
+        - in: path
+          name: produtoId
+          schema:
+            type: string
+          required: true
+          description: ID do produto
+      responses:
+        '200':
+          description: Produto excluído com sucesso
+        '404':
+          description: Produto não encontrado
+        '500':
+          description: Erro no servidor
+
+  /api/produto/categoria/{categoria}:
+    get:
+      summary: Retorna produtos por categoria
+      parameters:
+        - in: path
+          name: categoria
+          schema:
+            type: string
+          required: true
+          description: Categoria do produto
+      responses:
+        '200':
+          description: Lista de produtos por categoria
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Produto'
+              example:
+                - produtoId: "23456"
+                  nomeProduto: "Hambúrguer"
+                  descricaoProduto: "Hambúrguer de carne 200g"
+                  precoProduto: 15.99
+                  categoriaProduto: "Lanche"
+        '404':
+          description: Nenhum produto encontrado na categoria especificada
+        '500':
+          description: Erro no servidor
+
+components:
+  schemas:
+    Produto:
+      type: object
+      properties:
+        produtoId:
+          type: string
+        nomeProduto:
+          type: string
+        descricaoProduto:
+          type: string
+        precoProduto:
+          type: number
+        categoriaProduto:
+          type: string
+
+produtoRoutes.js:
+
+const express = require('express');
+
+module.exports = (produtoRepository) => {
+    if (!produtoRepository) {
+        throw new Error("produtoRepository é obrigatório para inicializar produtoRoutes");
+    }
+
+    const router = express.Router();
+
+    router.post('/', async (req, res) => {
+        let produtos = req.body;
+
+        // Verifica se a entrada é um único objeto e transforma em array
+        if (!Array.isArray(produtos)) {
+            produtos = [produtos];
+        }
+
+        try {
+            // Valida se todos os produtos possuem nomes únicos
+            const nomesProdutos = produtos.map(produto => produto.nomeProduto);
+            const nomesUnicos = new Set(nomesProdutos);
+            if (nomesProdutos.length !== nomesUnicos.size) {
+                return res.status(400).send({ message: "Produtos não podem possuir o mesmo nome." });
+            }
+
+            // Adiciona cada produto ao repositório
+            const novosProdutos = [];
+            for (const produto of produtos) {
+                const novoProduto = await produtoRepository.addProduto(produto);
+                novosProdutos.push(novoProduto);
+            }
+
+            res.status(201).json(novosProdutos);
+        } catch (error) {
+            console.error('Erro ao adicionar novos produtos:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    router.get('/', async (req, res) => {
+        try {
+            const produtos = await produtoRepository.getAllProdutos();
+            if (produtos.length === 0) {
+                return res.status(404).send({ message: "Nenhum produto encontrado." });
+            }
+            res.json(produtos);
+        } catch (error) {
+            console.error('Erro ao buscar todos os produtos:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    router.get('/:produtoId', async (req, res) => {
+        try {
+            const produto = await produtoRepository.getProdutoByProdutoId(req.params.produtoId);
+            if (!produto) {
+                return res.status(404).send({ message: "Produto não encontrado." });
+            }
+            res.status(200).json(produto);
+        } catch (error) {
+            console.error('Erro ao buscar produto por ID:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    router.get('/categoria/:categoria', async (req, res) => {
+        try {
+            const produtos = await produtoRepository.getProdutosByCategoria(req.params.categoria);
+            if (produtos.length === 0) {
+                return res.status(404).send({ message: "Nenhum produto encontrado nesta categoria." });
+            }
+            res.json(produtos);
+        } catch (error) {
+            console.error('Erro ao buscar produtos por categoria:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    router.put('/:produtoId', async (req, res) => {
+        try {
+            // Verifica se o produto existe
+            const existingProduct = await produtoRepository.getProdutoByProdutoId(req.params.produtoId);
+            if (!existingProduct) {
+                return res.status(404).send({ message: "Produto não encontrado." });
+            }
+
+            // Atualiza o produto
+            const updatedProduct = await produtoRepository.updateProduto(req.params.produtoId, req.body);
+            res.status(200).json(updatedProduct);
+        } catch (error) {
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    router.delete('/:produtoId', async (req, res) => {
+        try {
+            const result = await produtoRepository.deleteProduto(req.params.produtoId);
+            if (!result) {
+                return res.status(404).send({ message: "Produto não encontrado." });
+            }
+            res.status(200).send({ message: "Produto excluído com sucesso." });
+        } catch (error) {
+            console.error('Erro ao excluir produto:', error);
+            res.status(500).send({ message: "Erro no servidor", error: error.message });
+        }
+    });
+
+    return router;
+};
+
+server.js:
+
+const express = require('express');
+const bodyParser = require('body-parser');
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const path = require('path');
+const db = require('../../../infrastructure/dbconnect');
+
+// Repositórios e clientes HTTP
+const ProdutoRepository = require('../../../infrastructure/repositories/produtoRepository');
+
+// Rotas
+const produtoRoutes = require('../../interfaces/api/produtoRoutes'); 
+
+// Inicialização do app Express
+const app = express();
+app.use(bodyParser.json());
+
+// Configurações de CORS
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    next();
+});
+
+// Conexão com o MongoDB
+db.once('open', () => {
+    console.log('Microserviço de Cadastro de Produtos conectado ao MongoDB');
+    const PORT = process.env.PORT || 3002;
+
+    // Inicializa os repositórios e clientes HTTP
+    const produtoRepository = new ProdutoRepository();
+
+    // Documentação Swagger
+    const swaggerDocument = YAML.load(path.join(__dirname, '../../../../docs/openapi.yaml'));
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+    // Configuração das rotas com as instâncias corretas
+    app.use('/api/produto', produtoRoutes(produtoRepository));
+
+    // Inicia o servidor
+    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+});
+
+produto.js:
+
+const mongoose = require('mongoose');
+const shortid = require('shortid');
+
+const produtoSchema = new mongoose.Schema({
+    produtoId: { type: String, default: shortid.generate },
+    nomeProduto: { type: String, required: true },
+    descricaoProduto: { type: String, required: true },
+    precoProduto: { type: Number, required: true },
+    categoriaProduto: { type: String, required: true }
+});
+
+const Produto = mongoose.model('Produto', produtoSchema);
+
+module.exports = Produto;
+
+produtoRepositoryInterface.js:
+
+class ProdutoRepositoryInterface {
+    /**
+     * Adiciona um novo produto ao repositório.
+     * @param {Object} produtoData - Dados do produto a ser adicionado.
+     * @returns {Promise<Object>} O produto recém-criado.
+     */
+    async addProduto(produtoData) {
+        throw new Error('Method not implemented: addProduto');
+    }
+
+    /**
+     * Busca um produto pelo seu ID.
+     * @param {String} produtoId - O ID do produto.
+     * @returns {Promise<Object>} O produto encontrado.
+     */
+    async getProdutoByProdutoId(produtoId) {
+        throw new Error('Method not implemented: getProdutoByProdutoId');
+    }
+
+    /**
+     * Retorna todos os produtos do repositório.
+     * @returns {Promise<Array>} Lista de todos os produtos.
+     */
+    async getAllProdutos() {
+        throw new Error('Method not implemented: getAllProdutos');
+    }
+
+    /**
+     * Retorna produtos de uma categoria específica.
+     * @param {String} categoria - A categoria dos produtos.
+     * @returns {Promise<Array>} Lista de produtos da categoria.
+     */
+    async getProdutosByCategoria(categoria) {
+        throw new Error('Method not implemented: getProdutosByCategoria');
+    }
+
+    /**
+     * Atualiza um produto pelo ID.
+     * @param {String} produtoId - O ID do produto.
+     * @param {Object} updateData - Dados para atualização do produto.
+     * @returns {Promise<Object>} O produto atualizado.
+     */
+    async updateProduto(produtoId, updateData) {
+        throw new Error('Method not implemented: updateProduto');
+    }
+
+    /**
+     * Exclui um produto pelo ID.
+     * @param {String} produtoId - O ID do produto.
+     * @returns {Promise<Object>} O produto excluído.
+     */
+    async deleteProduto(produtoId) {
+        throw new Error('Method not implemented: deleteProduto');
+    }
+}
+
+module.exports = ProdutoRepositoryInterface;
+
+produtoRepository.js:
+
+const Produto = require('../../core/domain/produto');
+const ProdutoRepositoryInterface = require('../../core/repositoriesInterfaces/produtoRepositoryInterface');
+
+class ProdutoRepository extends ProdutoRepositoryInterface {
+    async addProduto(produtoData) {
+        const existingProduct = await Produto.findOne({ nomeProduto: produtoData.nomeProduto });
+        if (existingProduct) {
+            throw new Error('Produto com este nome já existe.');
+        }
+        const produto = new Produto(produtoData);
+        await produto.save();
+        return produto;
+    }
+
+    async getProdutoByProdutoId(produtoId) {
+        return Produto.findOne({ produtoId });
+    }
+
+    async getAllProdutos() {
+        return Produto.find({});
+    }
+
+    async getProdutosByCategoria(categoria) {
+        return Produto.find({ categoriaProduto: categoria });
+    }
+
+    async updateProduto(produtoId, updateData) {
+        return Produto.findOneAndUpdate({ produtoId }, updateData, { new: true });
+    }
+
+    async deleteProduto(produtoId) {
+        return Produto.findOneAndDelete({ produtoId });
+    }
+}
+
+module.exports = ProdutoRepository;
+
+dbconnect.js:
+
+const mongoose = require('mongoose');
+
+const username = 'docdb_admin';
+const password = 'docdb_admin_password';
+const clusterEndpoint = 'docdb-microservice-produtos.cluster-cuebxlhckhcy.us-east-1.docdb.amazonaws.com';
+const dbName = 'orderdb';
+
+const connectionString = `mongodb://${username}:${password}@${clusterEndpoint}:27017/${dbName}?retryWrites=false`;
+
+mongoose.connect(connectionString, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  authMechanism: 'SCRAM-SHA-1' // Define o mecanismo explicitamente
+});
+
+const db = mongoose.connection;
+
+console.log(connectionString); // Isso mostrará a string de conexão completa no console
+
+db.on('error', console.error.bind(console, 'connection error:'));
+db.once('open', function() {
+  console.log('Connected to MongoDB');
+});
+
+module.exports = db;
+
+produtoIntegrationTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const mongoose = require('mongoose');
+
+describe('Testes de Integração do Microserviço de Produtos', () => {
+  beforeAll(async () => {
+    await mongoose.connect('mongodb://localhost:27017/test', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.dropDatabase();
+    await mongoose.connection.close();
+  });
+
+  it('Deve criar e buscar um produto por ID', async () => {
+    const novoProduto = {
+      nomeProduto: 'Produto Teste',
+      descricaoProduto: 'Descrição do Produto Teste',
+      precoProduto: 19.99,
+      categoriaProduto: 'Categoria Teste',
+    };
+
+    const resPost = await request(app).post('/api/produto').send(novoProduto);
+    expect(resPost.status).toBe(201);
+
+    const resGet = await request(app).get(`/api/produto/${resPost.body.produtoId}`);
+    expect(resGet.status).toBe(200);
+    expect(resGet.body.nomeProduto).toBe('Produto Teste');
+  });
+});
+
+produtoRepositoryTest.js:
+
+const mongoose = require('mongoose');
+const Produto = require('../src/core/domain/produto');
+const ProdutoRepository = require('../src/infrastructure/repositories/produtoRepository');
+
+describe('Testes do ProdutoRepository', () => {
+  let produtoRepository;
+
+  beforeAll(async () => {
+    await mongoose.connect('mongodb://localhost:27017/test', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    produtoRepository = new ProdutoRepository();
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.dropDatabase();
+    await mongoose.connection.close();
+  });
+
+  it('Deve adicionar um novo produto', async () => {
+    const produto = await produtoRepository.addProduto({
+      nomeProduto: 'Produto Teste',
+      descricaoProduto: 'Descrição do Produto Teste',
+      precoProduto: 19.99,
+      categoriaProduto: 'Categoria Teste',
+    });
+
+    expect(produto.produtoId).toBeDefined();
+    expect(produto.nomeProduto).toBe('Produto Teste');
+  });
+
+  it('Deve retornar todos os produtos', async () => {
+    const produtos = await produtoRepository.getAllProdutos();
+    expect(produtos.length).toBeGreaterThan(0);
+  });
+});
+
+produtoRoutesTest.js:
+
+const request = require('supertest');
+const app = require('../src/application/interfaces/web/server');
+const ProdutoRepository = require('../src/infrastructure/repositories/produtoRepository');
+
+jest.mock('../src/infrastructure/repositories/produtoRepository');
+
+describe('Testes das Rotas de Produto', () => {
+  beforeEach(() => {
+    ProdutoRepository.mockClear();
+  });
+
+  it('Deve criar um novo produto', async () => {
+    ProdutoRepository.prototype.addProduto.mockResolvedValue({
+      produtoId: '12345',
+      nomeProduto: 'Produto Teste',
+      descricaoProduto: 'Descrição Teste',
+      precoProduto: 19.99,
+      categoriaProduto: 'Categoria Teste',
+    });
+
+    const res = await request(app).post('/api/produto').send({
+      nomeProduto: 'Produto Teste',
+      descricaoProduto: 'Descrição Teste',
+      precoProduto: 19.99,
+      categoriaProduto: 'Categoria Teste',
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.produtoId).toBe('12345');
+  });
+
+  it('Deve retornar todos os produtos', async () => {
+    ProdutoRepository.prototype.getAllProdutos.mockResolvedValue([
+      { produtoId: '12345', nomeProduto: 'Produto 1' },
+      { produtoId: '67890', nomeProduto: 'Produto 2' },
+    ]);
+
+    const res = await request(app).get('/api/produto');
+
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBe(2);
+  });
+
+  it('Deve retornar erro ao criar produto sem dados obrigatórios', async () => {
+    const res = await request(app).post('/api/produto').send({});
+    expect(res.status).toBe(400);
+  });
+});
+
+dockerfile:
+
+# Use uma imagem oficial do Node.js como base
+FROM node:20.12.0
+
+# Cria um diretório para armazenar os arquivos da aplicação
+WORKDIR /00.2_microservice_produtos
+
+# Copia os arquivos do package.json
+COPY package.json /00.2_microservice_produtos
+
+# Copia todos os arquivos do projeto para o diretório de trabalho
+COPY . /00.2_microservice_produtos
+
+# Instale as dependências do projeto
+RUN npm install
+
+# Exponha a porta que será usada pelo servidor
+EXPOSE 3000
+
+# Comando para executar a aplicação
+CMD ["npm", "start"]
+
+package.json:
+
+{
+  "name": "tech_challenge_4_fase",
+  "version": "1.0.0",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node src/aplication/interfaces/web/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "body-parser": "^1.20.2",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.1",
+    "nodemon": "^3.1.4",
+    "shortid": "^2.2.16",
+    "swagger-ui-express": "^5.0.1",
+    "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "description": ""
+}
+
+# 1. Criar o repositório
+aws ecr create-repository --repository-name microservice_app --region us-east-1
+
+# 2. Build da imagem Docker
+docker build -t microservice_produtos_app:latest .
+
+# 3. Login no ECR (verifique se o ID da conta está correto)
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 740588470221.dkr.ecr.us-east-1.amazonaws.com
+
+# 4. Tag da imagem
+docker tag microservice_produtos_app:latest 740588470221.dkr.ecr.us-east-1.amazonaws.com/microservice_app:microservice_produtos_app
+
+# 5. Push da imagem
+docker push 740588470221.dkr.ecr.us-east-1.amazonaws.com/microservice_app:microservice_produtos_app
