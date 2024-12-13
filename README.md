@@ -154,43 +154,43 @@ Cada repositório possui workflows de GitHub Actions que:
 
 Abaixo está a estrutura básica da pasta principal do projeto:
 
-/tech_chalenge_fase_4  
+/tech_chalenge_fase_4    
 
-├── infra_documentdb/
-│   ├── /.github
-│   │   └── /workflows
-|   │   │   └── deploy_documentdb.yaml
-│   ├── /terraform
-│   │   └── docdb.tf
+├── infra_documentdb/  
+│   ├── /.github  
+│   │   └── /workflows  
+|   │   │   └── deploy_documentdb.yaml  
+│   ├── /terraform  
+│   │   └── docdb.tf  
+|    
+├── /infra_eks  
+│   ├── /.github    
+│   │   └── /workflows  
+|   │   │   └── deploy_eks.yaml  
+│   ├── /cliente  
+│   │   └── cliente.tf  
+│   ├── /produto  
+│   │   └── produto.tf  
+│   ├── /pedidopgto  
+│   │   └── pedidopgto.tf   
 |  
-├── /infra_eks
-│   ├── /.github
-│   │   └── /workflows
-|   │   │   └── deploy_eks.yaml
-│   ├── /cliente
-│   │   └── cliente.tf
-│   ├── /produto
-│   │   └── produto.tf
-│   ├── /pedidopgto
-│   │   └── pedidopgto.tf 
-|
-├── infra_cognito/
-│   ├── /.github
-│   │   └── /workflows
-|   │   │   └── deploy_cognito.yaml
-│   ├── terraform
-│   │   └── cognito.tf
-|
-├── infra_apigateway/
-│   ├── /.github
-│   │   └── /workflows
-|   │   │   └── deploy_apigateway.yaml
-│   ├── terraform
-│   │   └── apigateway.tf
-|
-├── tech_challenge/
-│   └── /microservice_cliente
-│   └── /microservice_produtos
-│   └── /microservice_pedidopgto
+├── infra_cognito/  
+│   ├── /.github  
+│   │   └── /workflows  
+|   │   │   └── deploy_cognito.yaml  
+│   ├── terraform  
+│   │   └── cognito.tf  
+|  
+├── infra_apigateway/  
+│   ├── /.github  
+│   │   └── /workflows  
+|   │   │   └── deploy_apigateway.yaml  
+│   ├── terraform  
+│   │   └── apigateway.tf  
+|  
+├── tech_challenge/  
+│   └── /microservice_cliente  
+│   └── /microservice_produtos  
+│   └── /microservice_pedidopgto  
 
 
