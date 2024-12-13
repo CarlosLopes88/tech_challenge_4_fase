@@ -1,47 +1,46 @@
-# Tech Challenge Fase 3 - Order System App
+# Tech Challenge Fase 4 - Order System App
 
-Este é um sistema de gerenciamento de pedidos para uma lanchonete, desenvolvido como parte do Tech Challenge Fase 3. 
-
-### [Link Miro Tech Chalenge Arquitetura K8S](https://miro.com/app/board/uXjVKR4zMmM=/)
+Este é um sistema de gerenciamento de pedidos para uma lanchonete, desenvolvido como parte do Tech Challenge Fase 4. 
 
 ### [Link do video no youtube](https://youtu.be/gQWF_ncrUnA)
 
-O sistema é composto por uma API para gerenciamento de clientes, produtos, pedidos e pagamentos, implementada seguindo os princípios da Clean Architecture e utilizando infraestrutura escalável na AWS com Kubernetes, Lambda com API GATEWAY, e DocumentDB.
+O sistema é composto por uma API para gerenciamento de clientes, produtos, pedidos e pagamentos, implementada seguindo os princípios da Clean Architecture e utilizando infraestrutura escalável na AWS com EKS (Kubernetes), API GATEWAY, DocumentDB e Cognito como meio de autenticação.
 
-Inicialmente foi corrigido os pontos sinalizados no feedback do Tech Challenge Fase 2:
+Inicialmente foi corrigido os pontos sinalizados no feedback do Tech Challenge Fase 23
 
-- **O uso direto do axios dentro de usecases (core) que faz uma chamada HTTP (serviço externo) fere o isolamento proposto no CA**: Ajuste com a criação do pagamentoHttpClient.js.
-- **está acessando diretamente os Repositorys**: Criação na camada core clienteRepositoryInterface.js, pedidoRepositoryInterface.js e produtoRepositoryInterface.js para garantirmos o isolamento.
+- **Erro do kubernetes que você mencionou no documento**: Ajustes de rede para o docdb e EKS rodar e integrar corrijindo os problemas anteriores.
+- **Seria necessário gerar um token jwt que está como um exemplo o retorno no seu repositório**: Criação do Cognito para gerenciar o processo.
 
 ## Repositórios
 
 Você pode acessar os repositórios do projeto nos seguintes links:
 
-- **Infraestrutura do banco de dados (DocumentDB)**: [tcf3_infra_database](https://github.com/CarlosLopes88/tcf3_infra_database)
-- **Infraestrutura do Kubernetes (EKS)**: [tcf3_infra_kubernetes](https://github.com/CarlosLopes88/tcf3_infra_kubernetes)
-- **Função de autenticação (Lambda)**: [tcf3_auth-lambda](https://github.com/CarlosLopes88/tcf3_auth-lambda)
-- **Aplicação de pedidos (Node.js)**: [tcf3_order_system_app](https://github.com/CarlosLopes88/tcf3_order_system_app)
+- **Infraestrutura do banco de dados (DocumentDB)**: [01_tcf4_infra_documentdb](https://github.com/CarlosLopes88/01_tcf4_infra_documentdb)
+- **Infraestrutura do Kubernetes (EKS)**: [02_tcf4_infra_eks](https://github.com/CarlosLopes88/02_tcf4_infra_eks)
+- **Cognito (JWT)**: [03_tcf4_infra_cognito](https://github.com/CarlosLopes88/03_tcf4_infra_cognito)
+- **Apigateway**: [04_tcf4_infra_apigateway](https://github.com/CarlosLopes88/04_tcf4_infra_apigateway)
 
 ## Tecnologias Envolvidas
 
 - **Node.js** e **Express.js**: Backend da aplicação.
 - **MongoDB/DocumentDB**: Armazenamento de dados.
-- **AWS Lambda**: Função de autenticação de clientes.
+- **AWS Cognito**: Autenticação de clientes.
 - **Kubernetes (EKS)**: Orquestração de containers para o sistema de pedidos.
+- **AWS APIgateway**: Centralizar a entrada e validar token de login dos clientes.
 - **Docker**: Containerização da aplicação.
 - **Terraform**: Automação da infraestrutura.
 - **GitHub Actions**: Automação do CI/CD.
 
 ## Automação de Deploys
 
-A infraestrutura é gerida pelo **Terraform**, que define e aplica os recursos de infraestrutura na AWS, como o **Amazon EKS** para Kubernetes, **DocumentDB** para o banco de dados e **AWS Lambda** para a função de autenticação. O deploy da aplicação é automatizado com **GitHub Actions**, que dispara workflows para criar a infraestrutura e realizar o deploy do código sempre que houver um push na branch `main`.
+A infraestrutura é gerida pelo **Terraform**, que define e aplica os recursos de infraestrutura na AWS, como o **Amazon EKS** para Kubernetes, **DocumentDB** para o banco de dados e **AWS Cognito** para a autenticação e **AWS APIgateway**. O deploy da aplicação é automatizado com **GitHub Actions**, que dispara workflows para criar a infraestrutura e realizar o deploy do código sempre que houver um push na branch `main`.
 
 Cada repositório possui workflows YAML dedicados para automatizar o processo:
 
-- **Infraestrutura do banco de dados**: Deploy do DocumentDB.
-- **Infraestrutura Kubernetes**: Provisionamento do cluster EKS.
-- **Autenticação Lambda**: Deploy da função Lambda.
-- **Order System App**: Build e deploy da aplicação Node.js no Kubernetes.
+- **deploy_documentdb**: Deploy do DocumentDB.
+- **deploy_eks**: Provisionamento do cluster EKS e deploy dos 3 serviços eks_clientes, eks_produtos e eks_pedidopgto.
+- **deploy_cognito**: Deploy da Cognito.
+- **deploy_apigateway**: Deploy do nosso APIgateway.
 
 
 # Explicação e Motivação das Partes da Aplicação
