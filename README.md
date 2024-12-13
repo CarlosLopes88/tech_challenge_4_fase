@@ -88,8 +88,6 @@ O fluxo funciona da seguinte maneira:
 - A requisição chega ao API Gateway, que valida o token JWT com o Cognito.
 - O API Gateway encaminha a requisição para o Loadbalancer de cada serviço.
 
-<img align="center" src="https://github.com/CarlosLopes88/tech_challenge_3_fase/blob/520d73f550dcb7bae29dbf32446d6eaec72f6f67/estrutura_de_banco_de_dados_nosql_-_documentdb%20(1).png">
-
 ---
 
 ## 4. Automação com Terraform e GitHub Actions
