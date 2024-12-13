@@ -154,80 +154,43 @@ Cada repositório possui workflows de GitHub Actions que:
 
 Abaixo está a estrutura básica da pasta principal do projeto:
 
-/tech_chalenge_fase_3  
+/tech_chalenge_fase_4  
 
-├── /tcf3_infra_database  
-│   ├── /.github  
-│   │   └── /workflows  
-│   │       └── deploy_documentdb.yaml  
-│   └── /db-infra  
-│       └── /terraform  
-│           └── documentdb.tf  
-  
-├── /tcf3_infra_kubernetes  
-│   ├── /.github  
-│   │   └── /workflows  
-│   │       └── deploy_eks_Infrastructure.yaml  
-│   └── /kubernetes-infra  
-│       └── /terraform  
-│           └── eks-cluster.tf  
+├── infra_documentdb/
+│   ├── /.github
+│   │   └── /workflows
+|   │   │   └── deploy_documentdb.yaml
+│   ├── /terraform
+│   │   └── docdb.tf
+|  
+├── /infra_eks
+│   ├── /.github
+│   │   └── /workflows
+|   │   │   └── deploy_eks.yaml
+│   ├── /cliente
+│   │   └── cliente.tf
+│   ├── /produto
+│   │   └── produto.tf
+│   ├── /pedidopgto
+│   │   └── pedidopgto.tf 
+|
+├── infra_cognito/
+│   ├── /.github
+│   │   └── /workflows
+|   │   │   └── deploy_cognito.yaml
+│   ├── terraform
+│   │   └── cognito.tf
+|
+├── infra_apigateway/
+│   ├── /.github
+│   │   └── /workflows
+|   │   │   └── deploy_apigateway.yaml
+│   ├── terraform
+│   │   └── apigateway.tf
+|
+├── tech_challenge/
+│   └── /microservice_cliente
+│   └── /microservice_produtos
+│   └── /microservice_pedidopgto
 
-├── /tcf3_auth-lambda  
-│   ├── /.github  
-│   │   └── deploy_lambda_function.yaml  
-│   ├── /workflows  
-│   ├── /auth-lambda  
-│   │   ├── /src  
-│   │   │   └── /lambda  
-│   │   │       └── authLambda.js  
-│   │   └── /terraform  
-│   │       ├── main.tf  
-│   │       ├── outputs.tf  
-│   │       └── variables.tf  
-│   └── package.json  
-
-├── /tcf3_order_system_app  
-│   ├── /.github  
-│   │   └── /workflows  
-│   │       └── deploy_order_system_app.yaml  
-│   └── /order-system-app  
-│       ├── /docs  
-│       │   └── openapi.yaml  
-│       ├── /k8s  
-│       │   ├── appnode-deployment.yaml  
-│       │   └── appnode-service.yaml  
-│       ├── /src  
-│       │   ├── /core  
-│       │   │   ├── /domain  
-│       │   │   │   ├── cliente.js  
-│       │   │   │   ├── pagamento.js  
-│       │   │   │   ├── pedido.js  
-│       │   │   │   └── produto.js  
-│       │   │   ├── /interfaces  
-│       │   │   │   ├── clienteRepositoryInterface.js  
-│       │   │   │   ├── pedidoRepositoryInterface.js  
-│       │   │   │   └── produtoRepositoryInterface.js   
-│       │   │   ├── /use_cases  
-│       │   │       ├── pagamentoServices.js  
-│       │   │       └── pedidoUseServices.js  
-│       │   ├── /application  
-│       │   │   ├── /interfaces  
-│       │   │   │   ├── api  
-│       │   │   │   │   ├── clienteRoutes.js  
-│       │   │   │   │   ├── pagamentoRoutes.js  
-│       │   │   │   │   ├── pedidoRoutes.js  
-│       │   │   │   │   ├── produtoRoutes.js  
-│       │   │   │   │   └── webhookRoutes.js  
-│       │   │   │   └── web  
-│       │   │   │       └── server.js  
-│       │   ├── /infrastructure  
-│       │   │   ├── /http  
-│       │   │   │   └── pagamentoHttpClient.js  
-│       │   │   ├── /repositories  
-│       │   │   │   ├── clienteRepository.js  
-│       │   │   │   ├── pedidoRepository.js  
-│       │   │   │   └── produtoRepository.js  
-│       │   │   └── dbconnect.js  
-│       ├── dockerfile  
-│       └── package.json  
 
