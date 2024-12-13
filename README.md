@@ -6,7 +6,7 @@ Este é um sistema de gerenciamento de pedidos para uma lanchonete, desenvolvido
 
 O sistema é composto por uma API para gerenciamento de clientes, produtos, pedidos e pagamentos, implementada seguindo os princípios da Clean Architecture e utilizando infraestrutura escalável na AWS com EKS (Kubernetes), API GATEWAY, DocumentDB e Cognito como meio de autenticação.
 
-Inicialmente foi corrigido os pontos sinalizados no feedback do Tech Challenge Fase 23
+Inicialmente foi corrigido os pontos sinalizados no feedback do Tech Challenge Fase 3
 
 - **Erro do kubernetes que você mencionou no documento**: Ajustes de rede para o docdb e EKS rodar e integrar corrijindo os problemas anteriores.
 - **Seria necessário gerar um token jwt que está como um exemplo o retorno no seu repositório**: Criação do Cognito para gerenciar o processo.
