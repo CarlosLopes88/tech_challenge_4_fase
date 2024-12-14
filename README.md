@@ -2,7 +2,7 @@
 
 Este é um sistema de gerenciamento de pedidos para uma lanchonete, desenvolvido como parte do Tech Challenge Fase 4. 
 
-### [Link do video no youtube](https://youtu.be/gQWF_ncrUnA)
+### [Link do video no youtube](https://www.youtube.com/watch?v=hgEq9UEUCjE)
 
 O sistema é composto por uma API para gerenciamento de clientes, produtos, pedidos e pagamentos, implementada seguindo os princípios da Clean Architecture e utilizando infraestrutura escalável na AWS com EKS (Kubernetes), API GATEWAY, DocumentDB e Cognito como meio de autenticação.
 
