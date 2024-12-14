@@ -146,5 +146,5 @@ Cada repositório possui workflows de GitHub Actions que:
 
 ## 6. Arquitetura do APP
 
-<img align="center" src="https://github.com/CarlosLopes88/tech_challenge_3_fase/blob/91e3e2f5f40cbb2074339a7f184dc1d972b8cdc6/arquitetura_do_sistema_-_tech_challenge_fase_3.png">
+<img align="center" src="https://github.com/CarlosLopes88/tech_challenge_4_fase/blob/main/Arquitetura.png">
 
