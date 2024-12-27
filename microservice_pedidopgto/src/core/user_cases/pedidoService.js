@@ -1,6 +1,5 @@
 const Pedido = require('../../core/domain/pedido');
 const axios = require('axios');
-require('dotenv').config();
 
 const cliente_url_loadbalancer = process.env.CLIENTE_ENDPOINT;
 const produto_url_loadbalancer = process.env.PRODUTO_ENDPOINT;

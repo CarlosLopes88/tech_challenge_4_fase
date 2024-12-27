@@ -12,7 +12,7 @@ if (!username || !password || !clusterEndpoint || !dbName) {
   process.exit(1);
 }
 
-const connectionString = `mongodb://${username}:${password}@${clusterEndpoint}:27017/${dbName}}?authSource=admin&retryWrites=false`;
+const connectionString = `mongodb://${username}:${password}@${clusterEndpoint}:27017/${dbName}?authSource=admin&retryWrites=false`;
 
 mongoose.connect(connectionString, {
   useNewUrlParser: true,

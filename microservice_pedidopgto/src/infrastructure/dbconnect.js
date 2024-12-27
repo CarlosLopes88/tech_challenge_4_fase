@@ -1,4 +1,3 @@
-require('dotenv').config();
 const mongoose = require('mongoose');
 
 // Valores obtidos das variáveis de ambiente
@@ -12,7 +11,7 @@ if (!username || !password || !clusterEndpoint || !dbName) {
   process.exit(1);
 }
 
-const connectionString = `mongodb://${process.env.DOCDB_USERNAME}:${process.env.DOCDB_PASSWORD}@${process.env.DOCDB_CLUSTER_ENDPOINT_PED}:27017/${process.env.DOCDB_DBNAME}?authSource=admin&retryWrites=false`;
+const connectionString = `mongodb://${username}:${password}@${clusterEndpoint}:27017/${dbName}?authSource=admin&retryWrites=false`;
 
 mongoose.connect(connectionString, {
   useNewUrlParser: true,
