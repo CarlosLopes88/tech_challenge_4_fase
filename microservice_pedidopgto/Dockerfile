@@ -10,9 +10,6 @@ COPY package.json /microservice_pedidopgto
 # Copia todos os arquivos do projeto para o diretório de trabalho
 COPY . /microservice_pedidopgto
 
-# Copia o arquivo .env para o diretório de trabalho
-COPY .env /microservice_cliente/.env
-
 # Instale as dependências do projeto
 RUN npm install
 
