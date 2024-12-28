@@ -15,12 +15,12 @@ Inicialmente foi corrigido os pontos sinalizados no feedback do Tech Challenge F
 
 Você pode acessar os repositórios do projeto nos seguintes links:
 
-- **Infraestrutura do banco de dados (DocumentDB)**: [01_tcf4_infra_documentdb](https://github.com/CarlosLopes88/01_tcf4_infra_documentdb)
-- **Infraestrutura do Kubernetes (EKS)**: [02_tcf4_infra_eks_cliente](https://github.com/CarlosLopes88/02_tcf4_infra_eks_cliente)
-- **Infraestrutura do Kubernetes (EKS)**: [03_tcf4_infra_eks_produto](https://github.com/CarlosLopes88/03_tcf4_infra_eks_produto)
-- **Infraestrutura do Kubernetes (EKS)**: [04_tcf4_infra_eks_pedidopgto](https://github.com/CarlosLopes88/04_tcf4_infra_eks_pedidopgto)
-- **Cognito (JWT)**: [05_tcf4_infra_cognito](https://github.com/CarlosLopes88/05_tcf4_infra_cognito)
-- **Apigateway**: [06_tcf4_infra_apigateway](https://github.com/CarlosLopes88/06_tcf4_infra_apigateway)
+- **Infraestrutura do banco de dados (DocumentDB)**: [01_tcf4_infra_documentdb](https://github.com/CarlosLopes88/01_infra_documentdb)
+- **Infraestrutura do Kubernetes (EKS)**: [02_tcf4_infra_eks_cliente](https://github.com/CarlosLopes88/02_infra_eks_cliente)
+- **Infraestrutura do Kubernetes (EKS)**: [03_tcf4_infra_eks_produto](https://github.com/CarlosLopes88/03_infra_eks_produto)
+- **Infraestrutura do Kubernetes (EKS)**: [04_tcf4_infra_eks_pedidopgto](https://github.com/CarlosLopes88/04_infra_eks_pedidopgto)
+- **Cognito (JWT)**: [05_tcf4_infra_cognito](https://github.com/CarlosLopes88/05_infra_cognito)
+- **Apigateway**: [06_tcf4_infra_apigateway](https://github.com/CarlosLopes88/06_infra_apigateway)
 
 ## Tecnologias Envolvidas
 
